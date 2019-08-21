@@ -1,0 +1,143 @@
+---
+title: "Homework 3 Stat 255"
+author: "Nathanael Roy"
+date: "October 28, 2018"
+output: html_document
+---
+
+Answer the following questions using the tongue cancer data described in Section 1.11 and
+shown in Table 1.6 (available in R as "tongue").  When an estimation method is not fully
+specified, you are free to choose among the available options; just explain what your choice
+is and why it is chosen.  If you are using R (which you don't have to), please show the code
+or at least the key commands leading to your answer.
+
+1.  Plot the Kaplan-Meier estimate of the survival function together with 95% pointwise
+confidence intervals based on the log-log transformation.
+
+2.  Plot the Kaplan-Meier estimate of the survival function together with a 95% equal-
+probability confidence band based on the log transformation.
+
+3.  Plot  the  Kaplan-Meier  estimate  of  the  survival  function  together  with  a  95%  Hall-
+Wellner confidence band based on the log transformation.
+
+4.  Plot the Kaplan-Meier estimate of the cumulative hazard function together with 95%
+pointwise confidence intervals.
+
+5.  Plot the Kaplan-Meier estimate of the cumulative hazard function together with a 95%
+confidence band.
+
+6.  Plot the Nelson-Aalen estimate of the cumulative hazard function together with 95%
+pointwise confidence intervals based on the log transformation.
+
+7.  Estimate the survival probability at 50 months.  Report your point estimate together
+with a standard error.
+
+8.  Estimate the cumulative hazard at 50 months.  Report your point estimate together
+with a standard error.
+
+9.  Estimate the mean survival time restricted to 400 months.  Report your point estimate
+together with a 95% confidence interval.
+
+10.  Estimate the three quartiles of the survival time distribution.  Report your point esti-
+mates together with 95% confidence intervals.
+
+
+
+```{r}
+library(km.ci)
+library(KMsurv)
+library(survival)
+
+
+data(tongue)
+dim(tongue)
+names(tongue)
+summary(tongue)
+
+attach(tongue)
+
+# create a survival object for type 1
+surv.type1 = Surv(time[type==1],delta[type==1])
+#1.) plotting the K-M estimate with 95% pw CI based on log-log transform
+
+fit1 = survfit(surv.type1~1,conf.type="log-log",type="kaplan-meier")
+plot(fit1)
+
+#2.) plotting the K-M estimate with 95% pw CI based on log transform
+
+fit2 = survfit(surv.type1~1,conf.type="log",type="kaplan-meier")
+plot(fit2)
+
+#3.  Plot  the  Kaplan-Meier  estimate  of  the  survival  function  together  with  a  95%  Hall-Wellner confidence band based on the log transformation.
+
+conint.1 = km.ci(fit2,conf.level=0.95,method = "hall-wellner")
+plot(fit2,conf.int = FALSE)
+lines(conint.1$time,conint.1$lower,lty=3,type="s")
+lines(conint.1$time,conint.1$upper,lty=3, type="s")
+
+#4.  Plot the Kaplan-Meier estimate of the cumulative hazard function together with 95% pointwise confidence intervals.
+
+
+# Kaplan-Meier estimate of cumulative hazard function
+plot(fit2$time,-log(fit2$surv),lty=1,type="s",
+     ylim=c(0,3),xlab="time",ylab="Cumulative Hazard")
+lines(fit2$time,-log(fit2$upper),lty=2,type="s")
+lines(fit2$time,-log(fit2$lower),lty=2,type="s")
+
+#5.  Plot the Kaplan-Meier estimate of the cumulative hazard function together with a 95% confidence band.
+plot(fit2$time,-log(fit2$surv),lty=1,type="s",
+     ylim=c(0,3),xlab="time",ylab="Cumulative Hazard")
+lines(conint.1$time,-log(conint.1$lower),lty=3,type="s")
+lines(conint.1$time,-log(conint.1$upper),lty=3, type="s")
+ 
+
+#6.  Plot the Nelson-Aalen estimate of the cumulative hazard function together with 95% pointwise confidence intervals based on the log transformation.
+# Nelson-Aalen estimate of cumulative hazard function
+h.hat = fit2$n.event/fit2$n.risk
+H.tilde = cumsum(h.hat)
+lines(fit2$time,H.tilde,lty=3,type="s")
+
+# confidence intervals?
+sig2.H = cumsum(fit2$n.event/(fit2$n.risk^2))
+sig.H = sqrt(sig2.H)
+plot(fit2$time,H.tilde,lty=1,type="s",
+     ylim=c(0,3),xlab="time",ylab="Cumulative Hazard",main="Nelson-Aalen estimate")
+lines(fit2$time,H.tilde-1.96*sig.H,lty=2,type="s")
+lines(fit2$time,H.tilde+1.96*sig.H,lty=2,type="s")
+
+#7.  Estimate the survival probability at 50 months.  Report your point estimate together with a standard error.
+
+#Note that we have this give us the index of time 51:
+which(fit2$time==51)
+#So we have the point estimates:
+fit2$surv[14]
+fit2$std.err[14]
+
+#8.  Estimate the cumulative hazard at 50 months.  Report your point estimate together with a standard error.
+H.tilde[14]
+sig.H[14] #std error
+
+#9.  Estimate the mean survival time restricted to 400 months.  Report your point estimate together with a 95% confidence interval.
+print(fit2, print.rmean=TRUE)
+#From the output we have a mean survival time of 146.6
+146.6-27.7*1.96 #gives us lower bound
+146.6+27.7*1.96 #gives us upper bound
+
+
+#10.  Estimate the three quartiles of the survival time distribution.  Report your point esti-mates together with 95% confidence intervals.
+#Note that since we have:
+
+fit2$surv[c(10,29,30,41,42)]
+#we can calculate the quartiles:
+fit2$time[c(10,30,42)]
+
+
+
+```
+
+
+
+
+
+
+

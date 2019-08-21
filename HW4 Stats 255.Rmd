@@ -1,0 +1,133 @@
+---
+title: "Stat 255 HW 4"
+author: "Nathanael Roy"
+date: "November 4, 2018"
+output: html_document
+---
+
+Answer the following questions using the laryngeal cancer data described in Section 1.8 (available in R as "larynx"). For all tests, report the test statistics and the p-value. If you are using R, please show the code leading to your answer
+
+```{r}
+library(KMsurv)
+library(survival)
+
+data("larynx")
+attach(larynx)
+
+View(larynx)
+```
+1.) Combine the first two stages into a subgroup (say A) and the last two stages into another subgroup (say B). Separately for each subgroup, plot the Kaplan-Meier estimate of the survival function together with the 95% pointwise confidence interval.
+
+Note that the first two stages are data points 1 through 50 while the next are data points 51 trhough 90
+```{r}
+
+surv.A = Surv(time[stage==1|stage==2],delta[stage==1|stage==2])
+# standard Kaplan-Meier analysis
+fitA = survfit(surv.A~1)
+fitA #This just gives out a bit more information
+plot(fitA, main= "Survival function for A") # CI is based on log transformation
+
+surv.B = Surv(time[!(stage==1|stage==2)],delta[!(stage==1|stage==2)])
+# standard Kaplan-Meier analysis
+fitB = survfit(surv.B~1)
+fitB #This just gives out a bit more information
+plot(fitB, main= "Survival function for B") # CI is based on log transformation
+```
+
+
+2.) Plot the Kaplan-Meier estimates (of survival functions) for the two subgroups (A and B) together and comment on how the two subgroups compare with each other in terms of their survival experiences.
+
+We can see from above that B will be always below A when plotting meaning the survival is less likely in later stages than in earlier stages as time goes on. The stage 3 and 4 subgroups experiences shorter survival times.
+```{r}
+
+subgrp = as.double(stage==1|stage==2)
+fitAB = survfit(Surv(time,delta)~subgrp)
+plot(fitAB)
+```
+
+3) Perform a log-rank test of the equality of the survival functions for subgroup A and B against a two sided alternative
+
+```{r}
+test4 = survdiff(Surv(time,delta)~subgrp)
+test4
+```
+
+4.) Test the hypotheses in the last question with different weight functions: $W(t) = S(t)^\rho$ where $\rho=1$ or $-1$ and $S(t)$ is the Kaplan-Meier estimate of the survival function for the two subgroups combined. Note how the test results differ from those in the last question and give an intuitive explanation.
+
+```{r}
+test5 = survdiff(Surv(time,delta)~subgrp,rho=1) # emphasizing earlier times
+test5
+test6 = survdiff(Surv(time,delta)~subgrp,rho=-1) # emphasizing later times
+test6
+```
+
+5.) One might be tempted to take advantages of the differences observed in the last question and choose the weight function to minimize the p-value. Would this be appropriate? Why or why not?
+
+No, this would not be appropriate because of concerns of p-hacking and getting spurious results when doing multiple comparisons. 
+
+6.) Suppose you are writing the statistical analysis plan for a new study in a similar population. Would it be appropriate to use the above information to choose a weight function to maximize power for comparing subgroups A and B? What would be your choice?
+
+Yes, in this case we go into the study intending to analyze the earlier times more heavily and therefore put the weight of setting rho equal to 1.
+
+7.) Knowing that lower stages generally have better prognosis let us assume that the survival function for subgroup A is no lower than that for subgroup B. Perform a log-rank test of the equality of the survival functions for subgroups A and B against the appropriate one-sided alternative.
+
+This is just the square root of the chi-squared test:
+
+```{r}
+survdiff(Surv(time,delta)~subgrp)
+z= sqrt(10.1)
+#So the p value for this is:
+1-pnorm(z)
+```
+
+8.) From now on, consider the comparison of the following three groups: Stage A (i.e. subgroup A combining Stages I and II), Stage III, and Stage IV. Plot the Kaplan Meier estimates (of survival functions) for the three groups (A,III,and IV) together and comment on how the three groups compare with each other in terms of their survival experiences.
+
+```{r}
+
+subgrp2 = as.double(stage>2) + as.double(stage>3)
+fitA.III.IV = survfit(Surv(time,delta)~subgrp2)
+plot(fitA.III.IV )
+```
+
+9.) Perform a log-rank test of the equality of the survival functions for the three groups against the general alternative.
+
+```{r}
+
+subgrp = as.double(stage==1|stage==2)
+test7 = survdiff(Surv(time,delta)~subgrp2)
+test7
+```
+
+10.) Assuming the three groups have ordered survival functions (A highest; IV lowest), perform a log-rank trend test f the equality of the three survival functions against the appropriate ordered alternative.
+
+```{r}
+trend.test = function(test,coef=1:length(test$n)) {
+  r = sum(coef*(test$obs-test$exp))
+  v = t(coef)%*%test$var%*%coef
+  se = sqrt(as.vector(v))
+  z = r/se
+  p = 1-pnorm(z)
+  list(z=z,p=p)
+}
+trend.test(test7)
+
+```
+
+
+11.) Perform a stratified version of the test in Question 9 by stratifying on patient age 
+
+```{r}
+
+# stratified test
+median(age)
+older = (age>=65)
+younger = (age < 65)
+test8 = survdiff(Surv(time,delta)~subgrp2+strata(older))
+test8
+```
+
+12.) Perform a stratified version of the test in Question 10 by stratifying on patient age less than or equal to 65 or older than 65.
+
+```{r}
+trend.test(test8)
+```
